@@ -138,6 +138,27 @@ function extractIdFromPath(pathname) {
 }
 
 /**
+ * Reads and serves index.html with Content-Type: text/html.
+ * Returns a 404 JSON response if the file cannot be read.
+ * @param {http.ServerResponse} res
+ */
+function serveIndex(res) {
+  const filePath = path.join(__dirname, 'index.html');
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      // Per design: missing index.html returns 404, not 500
+      sendJsonResponse(res, 404, { error: 'Not found' });
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/html',
+      'Content-Length': data.length,
+    });
+    res.end(data);
+  });
+}
+
+/**
  * Creates and returns a new HTTP server instance with a route dispatcher.
  * Individual route handlers are attached by subsequent implementation tasks.
  * Pattern used by each handler: check method + pathname, then return early.
@@ -170,6 +191,11 @@ function createServer(store) {
       void pathname;  // used by route-matching if-blocks added in subsequent tasks
       void method;    // used by route-matching if-blocks added in subsequent tasks
 
+      // GET / — serve the frontend HTML page
+      if (pathname === '/' && method === 'GET') {
+        return serveIndex(res);
+      }
+
       // Fallthrough: no route matched
       sendJsonResponse(res, 404, { error: 'Not found' });
     } catch (err) {
@@ -181,7 +207,7 @@ function createServer(store) {
   return server;
 }
 
-module.exports = { TodoStore, createServer, parseJson, sendJsonResponse, extractIdFromPath };
+module.exports = { TodoStore, createServer, parseJson, sendJsonResponse, extractIdFromPath, serveIndex };
 
 if (require.main === module) {
   const server = createServer();
