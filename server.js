@@ -241,6 +241,21 @@ function createServer(store) {
         }
       }
 
+      // DELETE /api/todos/:id — TODO を削除して 204 で返す
+      if (pathname.match(/^\/api\/todos\/\d+$/) && method === 'DELETE') {
+        const id = extractIdFromPath(pathname);
+        if (id === null) {
+          return sendJsonResponse(res, 404, { error: 'Todo not found' });
+        }
+        const deleted = todoStore.deleteTodo(id);
+        if (!deleted) {
+          return sendJsonResponse(res, 404, { error: 'Todo not found' });
+        }
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
       // GET / — serve the frontend HTML page
       if (pathname === '/' && method === 'GET') {
         return serveIndex(res);
