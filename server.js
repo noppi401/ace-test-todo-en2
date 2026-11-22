@@ -88,23 +88,91 @@ class TodoStore {
 }
 
 /**
- * Creates and returns a new HTTP server instance.
- * Route handlers are added by subsequent implementation tasks.
- * @param {TodoStore} [store] - TodoStore instance; creates a fresh one if omitted
+ * Parses the JSON body from an incoming HTTP request.
+ * Accumulates stream chunks and resolves with the parsed JSON value.
+ * @param {http.IncomingMessage} req
+ * @returns {Promise<any>} Resolved with the parsed JSON value
+ * @throws {Error} If the body cannot be parsed as valid JSON
+ */
+function parseJson(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(body));
+      } catch (_e) {
+        reject(new Error('Invalid JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+/**
+ * Writes a JSON-encoded HTTP response with the given status code.
+ * Sets Content-Type: application/json and Content-Length headers automatically.
+ * @param {http.ServerResponse} res
+ * @param {number} statusCode - HTTP status code (e.g. 200, 201, 400, 404)
+ * @param {any} body - Value to serialize with JSON.stringify
+ */
+function sendJsonResponse(res, statusCode, body) {
+  const json = JSON.stringify(body);
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(json),
+  });
+  res.end(json);
+}
+
+/**
+ * Extracts a positive integer ID from paths matching /api/todos/:id.
+ * @param {string} pathname - URL pathname (e.g. '/api/todos/42')
+ * @returns {number|null} Parsed integer ID, or null if the path does not match
+ */
+function extractIdFromPath(pathname) {
+  const match = pathname.match(/^\/api\/todos\/(\d+)$/);
+  if (!match) return null;
+  const id = parseInt(match[1], 10);
+  return id > 0 ? id : null;
+}
+
+/**
+ * Creates and returns a new HTTP server instance with a route dispatcher.
+ * Individual route handlers are attached by subsequent implementation tasks.
+ * Pattern used by each handler: check method + pathname, then return early.
+ * @param {TodoStore} [store] - Optional TodoStore instance; a fresh one is
+ *   created if omitted.
  * @returns {http.Server}
  */
 function createServer(store) {
   const todoStore = store instanceof TodoStore ? store : new TodoStore();
 
-  const server = http.createServer((req, res) => {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+  const server = http.createServer(async (req, res) => {
+    try {
+      const { pathname } = new URL(req.url, 'http://localhost');
+      const method = req.method;
+
+      // ---- Route dispatcher ----
+      // Individual route handlers are inserted here by subsequent tasks.
+      // Each matched route returns early via `return handler(todoStore, ...)`.
+      // Unmatched requests fall through to the 404 response below.
+      void todoStore; // consumed by route handlers added in subsequent tasks
+      void pathname;  // used by route-matching if-blocks added in subsequent tasks
+      void method;    // used by route-matching if-blocks added in subsequent tasks
+
+      // Fallthrough: no route matched
+      sendJsonResponse(res, 404, { error: 'Not found' });
+    } catch (err) {
+      console.error('[server] Unexpected error handling request:', err);
+      sendJsonResponse(res, 500, { error: 'Internal server error' });
+    }
   });
 
   return server;
 }
 
-module.exports = { TodoStore, createServer };
+module.exports = { TodoStore, createServer, parseJson, sendJsonResponse, extractIdFromPath };
 
 if (require.main === module) {
   const server = createServer();
