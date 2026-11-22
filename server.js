@@ -217,6 +217,30 @@ function createServer(store) {
         }
       }
 
+      // PATCH /api/todos/:id — TODO の completed フィールドを更新して 200 で返す
+      if (pathname.match(/^\/api\/todos\/\d+$/) && method === 'PATCH') {
+        const id = extractIdFromPath(pathname);
+        if (id === null) {
+          return sendJsonResponse(res, 404, { error: 'Todo not found' });
+        }
+        let body;
+        try {
+          body = await parseJson(req);
+        } catch (_e) {
+          return sendJsonResponse(res, 400, { error: 'Invalid JSON' });
+        }
+        if (body === null || typeof body !== 'object' || Array.isArray(body) ||
+            typeof body.completed !== 'boolean') {
+          return sendJsonResponse(res, 400, { error: 'Completed must be a boolean' });
+        }
+        try {
+          const updated = todoStore.toggleTodo(id, body.completed);
+          return sendJsonResponse(res, 200, updated);
+        } catch (err) {
+          return sendJsonResponse(res, 404, { error: err.message });
+        }
+      }
+
       // GET / — serve the frontend HTML page
       if (pathname === '/' && method === 'GET') {
         return serveIndex(res);
