@@ -196,6 +196,27 @@ function createServer(store) {
         return sendJsonResponse(res, 200, todoStore.getAllTodos());
       }
 
+      // POST /api/todos — 新しい TODO を作成して 201 で返す
+      if (pathname === '/api/todos' && method === 'POST') {
+        let body;
+        try {
+          body = await parseJson(req);
+        } catch (_e) {
+          return sendJsonResponse(res, 400, { error: 'Invalid JSON' });
+        }
+        // body はタイトルプロパティを持つ plain object でなければならない
+        if (body === null || typeof body !== 'object' || Array.isArray(body) ||
+            !Object.prototype.hasOwnProperty.call(body, 'title')) {
+          return sendJsonResponse(res, 400, { error: 'Title is required' });
+        }
+        try {
+          const todo = todoStore.addTodo(body.title);
+          return sendJsonResponse(res, 201, todo);
+        } catch (err) {
+          return sendJsonResponse(res, 400, { error: err.message });
+        }
+      }
+
       // GET / — serve the frontend HTML page
       if (pathname === '/' && method === 'GET') {
         return serveIndex(res);
