@@ -191,6 +191,11 @@ function createServer(store) {
       void pathname;  // used by route-matching if-blocks added in subsequent tasks
       void method;    // used by route-matching if-blocks added in subsequent tasks
 
+      // GET /api/todos — すべての TODO を JSON 配列で返す
+      if (pathname === '/api/todos' && method === 'GET') {
+        return sendJsonResponse(res, 200, todoStore.getAllTodos());
+      }
+
       // GET / — serve the frontend HTML page
       if (pathname === '/' && method === 'GET') {
         return serveIndex(res);
