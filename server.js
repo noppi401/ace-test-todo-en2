@@ -149,8 +149,17 @@ function createServer(store) {
   const todoStore = store instanceof TodoStore ? store : new TodoStore();
 
   const server = http.createServer(async (req, res) => {
+    // Parse the request URL first; treat unparseable paths as 404 rather
+    // than allowing them to fall through to the generic 500 error handler.
+    let pathname;
     try {
-      const { pathname } = new URL(req.url, 'http://localhost');
+      pathname = new URL(req.url, 'http://localhost').pathname;
+    } catch (_e) {
+      sendJsonResponse(res, 404, { error: 'Not found' });
+      return;
+    }
+
+    try {
       const method = req.method;
 
       // ---- Route dispatcher ----
